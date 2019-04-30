@@ -4,6 +4,13 @@ import networkx as nx
 import copy
 import matplotlib.pyplot as plt
 
+def equiv_nodes(node1, node2):
+    return ((node1['flag'], node1['cluster']) == (node2['flag'], node2['cluster']))
+
+def equiv_edges(edge1, edge2):
+    return ((edge1['flags'], edge1['clusters']) == (edge2['flags'], edge2['clusters']))
+
+
 class SingleGraph:
     def __init__(self, orig_graph, cluster_dict, flag_dict):
         self.graph = copy.deepcopy(orig_graph)
@@ -45,19 +52,12 @@ class SingleGraph:
         plt.show()
         plt.close()
 
-
-    # def equiv_nodes(self, node1, node2):
-    #     return ((node1['flag'], node1['cluster']) == (node2['flag'], node2['cluster']))
-
-    # def equiv_edges(self, edge1, edge2):
-    #     return ((edge1['flags'], edge1['clusters']) == (edge2['flags'], edge2['clusters']))
-
-    # # TO test:
-    # # make sure that if we have .-.-. as a flag within a cluster, then attaching to the middle is not the same as attaching to the end
-    # def is_isomorphic(self, network2):
-    #     # Both nodes and edges need to have equivalence properties
-    #     return nx.is_isomorphic(self.graph, network2.graph, node_match=equiv_nodes,
-    #         edge_match=equiv_edges)
+    # TO test:
+    # make sure that if we have .-.-. as a flag within a cluster, then attaching to the middle is not the same as attaching to the end
+    def is_isomorphic(self, network2):
+        # Both nodes and edges need to have equivalence properties
+        return nx.is_isomorphic(self.graph, network2.graph, node_match=equiv_nodes,
+            edge_match=equiv_edges)
 
     # # def check_cluster_independence?
 
@@ -69,15 +69,51 @@ class SingleGraph:
 def run_tests():
     # Construct a V-graph 2-1-2, with the vertex of degree as a flag
     v_raw_graph = nx.Graph()
-    v_raw_graph.add_node(1)
-    v_raw_graph.add_node(2)
-    v_raw_graph.add_node(3)
-    v_raw_graph.add_edge(1, 2)
-    v_raw_graph.add_edge(1, 3)
+    v_raw_graph.add_nodes_from([1, 2, 3])
+    v_raw_graph.add_edges_from([(1, 2), (1, 3)])
     cluster_dict = { 1: 1, 2: 2, 3: 2 }
     flag_dict = { 1: True, 2: False, 3: False }
     v_graph = SingleGraph(v_raw_graph, cluster_dict, flag_dict)
     v_graph.draw()
+
+    # Reflexive Isomorphism
+    print('Reflexive Isomorphism (should be true): {}'.format(v_graph.is_isomorphic(v_graph)))
+
+    # Check isomorphism in case of edges attaching to same clusters, but fundamentally different graphs
+    sim_labels_raw1 = nx.Graph()
+    sim_labels_raw1.add_nodes_from([1, 2, 3, 4])
+    sim_labels_raw1.add_edges_from([(1, 2), (1, 3), (3, 4)])
+    sim_labels_raw2 = nx.Graph()
+    sim_labels_raw2.add_nodes_from([1, 2, 3, 4])
+    sim_labels_raw2.add_edges_from([(1, 2), (1, 3), (1, 4)])
+    cluster_dict = { 1: 1, 2: 1, 3: 1, 4: 2 }
+    flag_dict = { 1: False, 2: False, 3: False, 4: False }
+    sim_labels_graph1 = SingleGraph(sim_labels_raw1, cluster_dict, flag_dict)
+    sim_labels_graph2 = SingleGraph(sim_labels_raw2, cluster_dict, flag_dict)
+    sim_labels_graph1.draw()
+    sim_labels_graph2.draw()
+    print('Same Edge Labels, Not Isomorphic (should be false): {}'.format(sim_labels_graph1.is_isomorphic(sim_labels_graph2)))
+
+    # Check permutation of the vertices while maintaining cluster labels is isomorphic
+    v_raw_graph2 = nx.Graph()
+    v_raw_graph2.add_nodes_from([1, 2, 3])
+    v_raw_graph2.add_edges_from([(1, 2), (2, 3)])
+    cluster_dict = { 1: 2, 2: 1, 3: 2 }
+    flag_dict = { 1: False, 2: True, 3: False }
+    v_graph2 = SingleGraph(v_raw_graph2, cluster_dict, flag_dict)
+    print('Permutation Isomorphism (should be true): {}'.format(v_graph2.is_isomorphic(v_graph)))
+
+    # Check putting different clusters is not isomorphic
+    diff_v_raw_graph = nx.Graph()
+    diff_v_raw_graph.add_nodes_from([1, 2, 3])
+    diff_v_raw_graph.add_edges_from([(1, 2), (1, 3)])
+    cluster_dict = { 1: 1, 2: 3, 3: 3 }
+    flag_dict = { 1: True, 2: False, 3: False }
+    diff_v_graph = SingleGraph(diff_v_raw_graph, cluster_dict, flag_dict)
+    diff_v_graph.draw()
+    print('Same Graph, Different Clusters (should be false): {}'.format(diff_v_graph.is_isomorphic(v_graph)))
+
+
 
 run_tests()
 
