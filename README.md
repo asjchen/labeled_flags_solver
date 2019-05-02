@@ -7,8 +7,6 @@
 
 ## Todo List:
 * Flag Algebras
-    * decide consistent and nonredundant representation of graphs and flags (might be good to use NetworkX (or whatever I used in 224W) or another package)
-    * find a way to visually display the graphs and flags
     * write a test suite
     * multiply two flag graphs
     * average a flag graph
