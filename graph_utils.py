@@ -163,14 +163,26 @@ class SingleGraph:
             graph_product.append((combined_singlegraph, float(iso_count) / total_combo_count))
         return graph_product
 
-    # def check_cluster_independence(self):
-        # find list of clusters
+    def check_cluster_independence(self):
+        cluster_labels = nx.get_node_attributes(self.graph, 'cluster')
+        for n1, n2 in self.graph.edges():
+            if cluster_labels[n1] == cluster_labels[n2]:
+                return False 
+        return True
 
-    
+    # TODO: test this!
+    def contains_labeled_edge(self, label1, label2):
+        edge_attrs = nx.get_edge_attributes(self.graph, 'node_attrs')
+        for edge in edge_attrs:
+            if set([attr[0] for attr in edge_attrs[edge]]) == set([label1, label2]):
+                return True
+        return False
 
 
-    # def average_flags(self):
+    #def average_flags(self):
+        # unlike in multiplication, we care about distinct isomorphisms of a subset (ordering of vertices)
 
+# TODO: check if all the above functions work with a nonsymmetric flag (i.e. w/ different isomorphisms)
 # TODO: incorporate into a testing structure rather than a single function
 def run_tests():
     # Construct a V-graph 2-1-2, with the vertex of degree as a flag
@@ -258,8 +270,6 @@ def run_tests():
 
     # TODO: add tests for flags larger than 1 vertex
 
-
-
-
-run_tests()
+if __name__ == '__main__':
+    run_tests()
 
