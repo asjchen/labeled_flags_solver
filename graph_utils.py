@@ -42,7 +42,10 @@ def draw_graph_form(graph_form):
 
 class SingleGraph:
     def __init__(self, orig_graph, cluster_dict, flag_dict):
-        self.graph = copy.deepcopy(orig_graph)
+        # Empty the graph attributes from orig_graph
+        self.graph = nx.Graph()
+        self.graph.add_nodes_from(list(orig_graph.nodes()))
+        self.graph.add_edges_from(list(orig_graph.edges()))
 
         # Check cluster and flag labels are correct, and then add them
         try:
@@ -178,8 +181,42 @@ class SingleGraph:
                 return True
         return False
 
+    def unflag_graph(self):
+        cluster_labels = nx.get_node_attributes(self.graph, 'cluster')
+        flag_labels = { idx: False for idx in self.graph.nodes() }
+        return SingleGraph(self.graph, cluster_labels, flag_labels)
+
+    # NOTE: this is a hack to averaging down a flag of size 1
+    def average_single_flag(self):
+        # Assert that there is only one flag node
+        flag_attrs = nx.get_node_attributes(self.graph, 'flag')
+        orig_flag = [idx for idx in flag_attrs if flag_attrs[idx]][0]
+        if sum(flag_attrs.values()) != 1:
+            raise AssertionError('Flag is not of size 1')
+
+        unflagged = self.unflag_graph()
+        # Iterate thru all nodes
+        iso_count = 0
+        total_count = 0
+        cluster_labels = nx.get_node_attributes(unflagged.graph, 'cluster')
+            
+
+        for flag in unflagged.graph.nodes():
+            if cluster_labels[flag] != cluster_labels[orig_flag]:
+                continue
+            total_count += 1
+            # For each one, make a new graph with that node as the flag, then test isomorphism
+            flag_labels = { idx: False for idx in unflagged.graph.nodes() }
+            flag_labels[flag] = True
+            new_graph = SingleGraph(unflagged.graph, cluster_labels, flag_labels)
+            if self.is_isomorphic(new_graph):
+                iso_count += 1
+
+        return (unflagged, float(iso_count) / total_count)
+
 
     #def average_flags(self):
+        # probability is only among labels that match correctly (so don't account for when sigma is mapped to wrong cluster labels)
         # unlike in multiplication, we care about distinct isomorphisms of a subset (ordering of vertices)
 
 # TODO: check if all the above functions work with a nonsymmetric flag (i.e. w/ different isomorphisms)
@@ -269,6 +306,21 @@ def run_tests():
     draw_graph_form(double_flag_product_11)
 
     # TODO: add tests for flags larger than 1 vertex
+    # TODO: add tests to ensure constructor is emptying the attributes
+
+    draw_graph_form([v_graph.average_single_flag()]) # should have coefficient 1
+
+    uniform_v_raw_graph = nx.Graph()
+    uniform_v_raw_graph.add_nodes_from([1, 2, 3])
+    uniform_v_raw_graph.add_edges_from([(1, 2), (1, 3)])
+    uniform_cluster_dict = { 1: 1, 2: 1, 3: 1 }
+    uniform_flag_dict = { 1: True, 2: False, 3: False }
+    uniform_v_graph = SingleGraph(uniform_v_raw_graph, uniform_cluster_dict, uniform_flag_dict)
+    draw_graph_form([uniform_v_graph.average_single_flag()])
+
+    uniform_flag_dict = { 1: False, 2: True, 3: False }
+    uniform_v_graph = SingleGraph(uniform_v_raw_graph, uniform_cluster_dict, uniform_flag_dict)
+    draw_graph_form([uniform_v_graph.average_single_flag()])
 
 if __name__ == '__main__':
     run_tests()

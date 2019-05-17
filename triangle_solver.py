@@ -138,6 +138,10 @@ def main():
     rho_constraints = rho_density_constraints(vector_indices, args.rho)
     print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 3
 
+    # flag algebra constraints
+    # convert constraints to Irene form
+    # write the objective
+    # solve dat!
 
 
 
