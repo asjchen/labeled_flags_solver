@@ -7,9 +7,8 @@
 
 ## Todo List:
 * Flag Algebras
+    * improve visualization of multiple graph forms
     * write a test suite
-    * average a flag graph
+    * average a flag graph for general flag
 * Semidefinite program
-    * write constraints for semidefinite matrices
-    * write objective
-    * solve the problem!
+    * (likely) fix so output doesn't exceed 1-phi
