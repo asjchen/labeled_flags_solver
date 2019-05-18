@@ -1,5 +1,6 @@
 # Graph Utilities
 
+import math
 import networkx as nx 
 import copy
 import matplotlib.pyplot as plt
@@ -37,8 +38,25 @@ def combination(n, k):
 
 # In the form of a list of pairs (SingleGraph, float coefficient)
 def draw_graph_form(graph_form):
-    for single_graph, coeff in graph_form:
-        single_graph.draw(extra_text=str(coeff))
+    if len(graph_form) < 4:
+        num_cols = len(graph_form)
+        num_rows = 1
+    else:
+        num_cols = int(math.sqrt(len(graph_form)))
+        num_rows = int(math.ceil(float(len(graph_form)) / num_cols))
+    f, axs = plt.subplots(num_rows, num_cols, sharey=True)
+    
+    for idx in range(len(graph_form)):
+        single_graph, coeff = graph_form[idx]
+        if len(graph_form) == 1:
+            ax = axs
+        elif len(graph_form) < 4:
+            ax = axs[idx]
+        else:
+            ax = axs[idx // num_cols, idx % num_cols]
+        single_graph.draw(extra_text=str(coeff), ax=ax, draw=False)
+    plt.show()
+    plt.close()
 
 class SingleGraph:
     def __init__(self, orig_graph, cluster_dict, flag_dict):
@@ -66,24 +84,28 @@ class SingleGraph:
         for n1, n2 in self.graph.edges:
             add_labeled_edge(self.graph, n1, n2)
 
-    def draw(self, flag_size=400, node_size=200, extra_text=None):
+    def draw(self, flag_size=400, node_size=200, extra_text=None, ax=None, draw=True):
         pos = nx.circular_layout(self.graph)
-        nx.draw_networkx_nodes(self.graph, pos, node_size=node_size)
+        nx.draw_networkx_nodes(self.graph, pos, node_size=node_size, ax=ax)
 
         flag_status = nx.get_node_attributes(self.graph, 'flag')
         flags = [n for n in flag_status if flag_status[n]]
         nx.draw_networkx_nodes(self.graph, pos, nodelist=flags, 
-            node_shape='d', node_size=flag_size)
+            node_shape='d', node_size=flag_size, ax=ax)
 
         cluster_labels = nx.get_node_attributes(self.graph, 'cluster')
-        nx.draw_networkx_labels(self.graph, pos, labels=cluster_labels)
+        nx.draw_networkx_labels(self.graph, pos, labels=cluster_labels, ax=ax)
 
-        nx.draw_networkx_edges(self.graph, pos)
+        nx.draw_networkx_edges(self.graph, pos, ax=ax)
 
         if extra_text is not None:
-            plt.title(extra_text)
-        plt.show()
-        plt.close()
+            ax.set_title(extra_text)
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+        if draw:
+            plt.show()
+            plt.close()
+        return ax
 
     def is_isomorphic(self, network2):
         # Both nodes and edges need to have equivalence properties

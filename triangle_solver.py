@@ -3,8 +3,9 @@
 import argparse
 import networkx as nx
 from numpy import matrix, zeros
+from numpy.linalg import norm
 import Irene
-from graph_utils import SingleGraph
+from graph_utils import SingleGraph, draw_graph_form
 import itertools
 import matplotlib.pyplot as plt
 
@@ -43,6 +44,20 @@ def vector_entry_lookup(vector_indices, target):
         if target.is_isomorphic(vector_indices[i]):
             return i
     return None # TODO: potentially throw an error here
+
+def visualize_vector(vector_indices, num_vector, tolerance=1e-8):
+    # check every index, and if its entry is nonzero, add to list
+    graph_form = []
+    for idx in range(len(vector_indices)):
+        if num_vector[idx] > tolerance:
+            graph_form.append((vector_indices[idx], num_vector[idx]))
+    draw_graph_form(graph_form)
+
+def visualize_indexing(vector_indices):
+    visualize_vector(vector_indices, [1] * len(vector_indices))
+
+def visualize_constraint(vector_indices, lhs_constraint):
+    visualize_vector(vector_indices, [norm(m) for m in lhs_constraint])
 
 def nonnegative_entry_constraints(vector_indices):
     lhs_constraints = []
@@ -125,26 +140,41 @@ def flag_alg_constraints(vector_indices):
                     lhs_constraints[flag_cluster][graph_idx][idx1, idx2] += mult_coeff * avg_coeff
     return lhs_constraints, rhs_constraints
 
+
+# TODO: this is written incorrectly -- what exactly needs to sum to rho?
+
 # given an edge, the sum of the graphs containing that edge
 def rho_density_constraints(vector_indices, rho):
     target_edges = [(0, 1), (1, 2), (0, 2)]
+    cluster_configs = [(i, j, j) for j in range(3) for i in range(3)]
+    cluster_configs += [(0, 1, 2)]
     lhs_constraints = []
     rhs_constraints = []
+
     for label1, label2 in target_edges:
-        valid_indices = set()
-        for idx in range(len(vector_indices)):
-            if vector_indices[idx].contains_labeled_edge(label1, label2):
-                valid_indices.add(idx)
-        lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-        for idx in valid_indices:
-            lhs_constraints[-1][idx] = matrix([[-1]])
-        rhs_constraints.append(matrix([[-1 * rho]]))
+        for clusters in cluster_configs:
+            valid_indices = set()
+            for edge_bools in itertools.product(range(2), repeat=3):
+            
+                triangle_graph = make_triangle_graph(clusters, edge_bools)
+                idx = vector_entry_lookup(vector_indices, triangle_graph)
+                if idx is None:
+                    raise AssertionError(('Could not find graph with clusters {} '
+                        'and edge_bools {} in vector'.format(clusters, edge_bools)))    
+                if vector_indices[idx].contains_labeled_edge(label1, label2):
+                    valid_indices.add(idx)
+            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+            for idx in valid_indices:
+                lhs_constraints[-1][idx] = matrix([[-1]])
+            rhs_constraints.append(matrix([[-1 * rho]]))
     return lhs_constraints, rhs_constraints
 
 def solve_triangle_problem(rho, verbose=False):
     # Compute the indexing
     vector_indices = generate_indexing()
     print len(vector_indices) # should be 56
+
+    #visualize_indexing(vector_indices)
 
     # obtain constraints via functions, each of which should return a tuple, which will get separated
     nonneg_constraints = nonnegative_entry_constraints(vector_indices)
@@ -165,7 +195,8 @@ def solve_triangle_problem(rho, verbose=False):
 
     rho_constraints = rho_density_constraints(vector_indices, rho)
     if verbose:
-        print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 3
+        print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 30 (3 for each cluster configuration)
+
 
     lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0]
     rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1]
@@ -178,6 +209,7 @@ def solve_triangle_problem(rho, verbose=False):
             constraint_blocks[i].append(lhs_constraints[j][i])
     SDP = Irene.sdp('cvxopt')
     SDP.Option('feastol', 1e-9)
+    SDP.Option('maxiters', 1000)
     SDP.AddConstantBlock(rhs_constraints)
     for i in range(len(vector_indices)):
         SDP.AddConstraintBlock(constraint_blocks[i])
@@ -197,6 +229,7 @@ def solve_triangle_problem(rho, verbose=False):
     SDP.solve()
     if verbose:
         print SDP.Info
+    visualize_vector(vector_indices, SDP.Info['y'])
     return SDP.Info['PObj']
 
 
@@ -209,12 +242,11 @@ def main():
     intervals = 1000
     rhos = [i / float(intervals) for i in range(intervals + 1)]
 
-    # rhos = [rho for rho in rhos if rho > 0.30 and rho < 0.50]
-    rhos = [rhos[0]]
+    rhos = [0.334]
 
     pobjs = []
     for rho in rhos:
-        pobjs.append(solve_triangle_problem(rho))
+        pobjs.append(solve_triangle_problem(rho, verbose=True))
         print rho
         print pobjs[-1]
     plt.plot(rhos, pobjs)
