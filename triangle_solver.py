@@ -119,6 +119,7 @@ def make_pair_graph(flag_cluster, partner_cluster, edge_bool):
     flags = { 1: True, 2: False }
     return SingleGraph(raw, clusters, flags)
 
+# THIS DOESN"T SEEM TO BE DOING ANYTHING
 def flag_alg_constraints(vector_indices):
     lhs_constraints = []
     rhs_constraints = []
@@ -138,10 +139,9 @@ def flag_alg_constraints(vector_indices):
                     avg_graph, avg_coeff = sing_graph.average_single_flag()
                     graph_idx = vector_entry_lookup(vector_indices, avg_graph)
                     lhs_constraints[flag_cluster][graph_idx][idx1, idx2] += mult_coeff * avg_coeff
+                    # print lhs_constraints[flag_cluster][graph_idx]
     return lhs_constraints, rhs_constraints
 
-
-# TODO: this is written incorrectly -- what exactly needs to sum to rho?
 
 # given an edge, the sum of the graphs containing that edge
 def rho_density_constraints(vector_indices, rho):
@@ -193,10 +193,12 @@ def solve_triangle_problem(rho, verbose=False):
     if verbose:
         print 'Flag Constraints: {}'.format(len(flag_constraints[0])) # should be 3
 
+    # TODO: SEEMS LIKE THE FLAG CONSTRAInTS AREN'T DOING ANYTHING
+    # flag_constraints = ([], [])
+
     rho_constraints = rho_density_constraints(vector_indices, rho)
     if verbose:
         print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 30 (3 for each cluster configuration)
-
 
     lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0]
     rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1]
@@ -225,11 +227,30 @@ def solve_triangle_problem(rho, verbose=False):
     obj[obj_idx] = 1
     SDP.SetObjective(obj)
 
+
+    y = [ 1.00000000e+00,  1.76745183e-15, -3.15335102e-14, -8.14560447e-14,
+        7.27307022e-01,  9.66215913e-02,  1.76071387e-01, -9.09016213e-14,
+       -1.05092343e-14, -1.45461417e-14,  7.27307024e-01,  9.66215982e-02,
+        1.76071378e-01, -9.09016213e-14, -1.05092343e-14, -1.45461417e-14,
+        7.27307023e-01,  9.66216031e-02, -9.09016213e-14, -1.05092343e-14,
+        1.76071374e-01, -1.45461417e-14, -1.44615387e-12,  3.33329823e-01,
+        3.33329823e-01,  2.91491208e-06,  3.33329823e-01,  2.91491208e-06,
+        2.91491208e-06,  1.78723670e-06,  7.27307029e-01,  9.66215902e-02,
+       -9.09016213e-14, -1.05092343e-14,  1.76071380e-01, -1.45461417e-14,
+        1.00000000e+00,  1.76745183e-15, -3.15335200e-14, -8.14560698e-14,
+        7.27307024e-01,  9.66215979e-02,  1.76071378e-01, -9.09016213e-14,
+       -1.05092343e-14, -1.45461417e-14,  7.27307022e-01,  9.66215948e-02,
+       -9.09016213e-14, -1.05092343e-14,  1.76071383e-01, -1.45461417e-14,
+        1.00000000e+00,  1.76745183e-15, -3.15335113e-14, -8.14560475e-14]
+    flag1 = sum([y[i] * flag_constraints[0][0][i] for i in range(56)])
+    print flag1
+
+
     # solve dat!
     SDP.solve()
     if verbose:
         print SDP.Info
-    visualize_vector(vector_indices, SDP.Info['y'])
+        visualize_vector(vector_indices, SDP.Info['y'])
     return SDP.Info['PObj']
 
 
@@ -238,11 +259,22 @@ def main():
     # # TODO: add description to this
     # parser.add_argument('rho', type=float)
     # args = parser.parse_args()
+    
+    pair_raw_graph = nx.Graph()
+    pair_raw_graph.add_nodes_from([1, 2])
+    pair1 = SingleGraph(pair_raw_graph, {1: 0, 2: 0}, {1: True, 2: False})
+    pair2 = SingleGraph(pair_raw_graph, {1: 0, 2: 1}, {1: True, 2: False})
+    product = pair1.multiply(pair2)
+    draw_graph_form(product)
+    second = product[1][0]
+    draw_graph_form([second.average_single_flag()])
+    
 
-    intervals = 1000
+
+    intervals = 20
     rhos = [i / float(intervals) for i in range(intervals + 1)]
 
-    rhos = [0.334]
+    rhos = [0.33334]
 
     pobjs = []
     for rho in rhos:

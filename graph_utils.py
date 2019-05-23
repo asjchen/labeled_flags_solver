@@ -172,14 +172,24 @@ class SingleGraph:
         graph_product = []
 
         # Find the probabilities/coefficients for each graph
-        total_combo_count = combination(len(non_flag_nodes1 + non_flag_nodes2), len(non_flag_nodes1))
+        #total_combo_count = combination(len(non_flag_nodes1 + non_flag_nodes2), len(non_flag_nodes1))
         for combined_graph in possible_combined_graphs:
             iso_count = 0
+            total_combo_count = 0
             for cand1_nodes_tup in itertools.combinations(non_flag_nodes1 + non_flag_nodes2, len(non_flag_nodes1)):
                 cand1_nodes = list(cand1_nodes_tup)
                 cand2_nodes = list(set(non_flag_nodes1 + non_flag_nodes2) - set(cand1_nodes))
                 cand1 = nx.subgraph(combined_graph, cand1_nodes + list(flag1.nodes()))
                 cand2 = nx.subgraph(combined_graph, cand2_nodes + list(flag1.nodes()))
+                
+                # Check if the clusters are the same in cand1 & graph1, same with cand2 & graph2
+                cand1_clusters = sorted(nx.get_node_attributes(cand1, 'cluster').values()) 
+                orig1_clusters = sorted(nx.get_node_attributes(self.graph, 'cluster').values()) 
+                cand2_clusters = sorted(nx.get_node_attributes(cand2, 'cluster').values()) 
+                orig2_clusters = sorted(nx.get_node_attributes(single_graph2.graph, 'cluster').values()) 
+                if cand1_clusters == orig1_clusters and cand2_clusters == orig2_clusters:
+                    total_combo_count += 1
+
                 if label_is_isomorphic(cand1, self.graph) and label_is_isomorphic(cand2, single_graph2.graph):
                     iso_count += 1
             cluster_attrs = nx.get_node_attributes(combined_graph, 'cluster')
