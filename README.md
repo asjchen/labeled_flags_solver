@@ -7,8 +7,8 @@
 
 ## Todo List:
 * Flag Algebras
-    * improve visualization of multiple graph forms
-    * write a test suite
     * average a flag graph for general flag
+    * write a test suite (similar to a Django test suite, toggle for 
+    testing visual cases)
 * Semidefinite program
-    * (likely) fix so output doesn't exceed 1-phi
+    * Write K4 flag setup

@@ -3,7 +3,7 @@
 import argparse
 import networkx as nx
 from numpy import matrix, zeros
-from numpy.linalg import norm
+from numpy.linalg import norm, eigvals
 import Irene
 from graph_utils import SingleGraph, draw_graph_form
 import itertools
@@ -119,7 +119,9 @@ def make_pair_graph(flag_cluster, partner_cluster, edge_bool):
     flags = { 1: True, 2: False }
     return SingleGraph(raw, clusters, flags)
 
-# THIS DOESN"T SEEM TO BE DOING ANYTHING
+# Note: in K3 case, this doesn't accomplish any further constraints, as there 
+# exists a soln on the remaining constraints that also happens to satisfy this
+# set of flag constraints
 def flag_alg_constraints(vector_indices):
     lhs_constraints = []
     rhs_constraints = []
@@ -174,8 +176,6 @@ def solve_triangle_problem(rho, verbose=False):
     vector_indices = generate_indexing()
     print len(vector_indices) # should be 56
 
-    #visualize_indexing(vector_indices)
-
     # obtain constraints via functions, each of which should return a tuple, which will get separated
     nonneg_constraints = nonnegative_entry_constraints(vector_indices)
     if verbose:
@@ -192,9 +192,6 @@ def solve_triangle_problem(rho, verbose=False):
     flag_constraints = flag_alg_constraints(vector_indices)
     if verbose:
         print 'Flag Constraints: {}'.format(len(flag_constraints[0])) # should be 3
-
-    # TODO: SEEMS LIKE THE FLAG CONSTRAInTS AREN'T DOING ANYTHING
-    # flag_constraints = ([], [])
 
     rho_constraints = rho_density_constraints(vector_indices, rho)
     if verbose:
@@ -228,22 +225,25 @@ def solve_triangle_problem(rho, verbose=False):
     SDP.SetObjective(obj)
 
 
-    y = [ 1.00000000e+00,  1.76745183e-15, -3.15335102e-14, -8.14560447e-14,
-        7.27307022e-01,  9.66215913e-02,  1.76071387e-01, -9.09016213e-14,
-       -1.05092343e-14, -1.45461417e-14,  7.27307024e-01,  9.66215982e-02,
-        1.76071378e-01, -9.09016213e-14, -1.05092343e-14, -1.45461417e-14,
-        7.27307023e-01,  9.66216031e-02, -9.09016213e-14, -1.05092343e-14,
-        1.76071374e-01, -1.45461417e-14, -1.44615387e-12,  3.33329823e-01,
-        3.33329823e-01,  2.91491208e-06,  3.33329823e-01,  2.91491208e-06,
-        2.91491208e-06,  1.78723670e-06,  7.27307029e-01,  9.66215902e-02,
-       -9.09016213e-14, -1.05092343e-14,  1.76071380e-01, -1.45461417e-14,
-        1.00000000e+00,  1.76745183e-15, -3.15335200e-14, -8.14560698e-14,
-        7.27307024e-01,  9.66215979e-02,  1.76071378e-01, -9.09016213e-14,
-       -1.05092343e-14, -1.45461417e-14,  7.27307022e-01,  9.66215948e-02,
-       -9.09016213e-14, -1.05092343e-14,  1.76071383e-01, -1.45461417e-14,
-        1.00000000e+00,  1.76745183e-15, -3.15335113e-14, -8.14560475e-14]
-    flag1 = sum([y[i] * flag_constraints[0][0][i] for i in range(56)])
-    print flag1
+    # y = [ 1.00000000e+00,  4.06614762e-12,  3.38194173e-12, -6.52881171e-13,
+    #     6.66256585e-01,  5.66092511e-04,  3.33177323e-01, -5.83826685e-12,
+    #    -5.56071968e-12, -5.77429640e-12,  6.66256585e-01,  5.66092511e-04,
+    #     3.33177323e-01, -5.83824722e-12, -5.56070062e-12, -5.77427691e-12,
+    #     6.66256585e-01,  5.66092511e-04, -5.83827484e-12, -5.56072745e-12,
+    #     3.33177323e-01, -5.77430434e-12, -2.41884097e-11,  3.33224259e-01,
+    #     3.33224259e-01,  9.04762200e-05,  3.33224259e-01,  9.04762200e-05,
+    #     9.04762200e-05,  5.57953073e-05,  6.66256585e-01,  5.66092511e-04,
+    #    -5.83827941e-12, -5.56073189e-12,  3.33177323e-01, -5.77430888e-12,
+    #     1.00000000e+00,  4.06615984e-12,  3.38196175e-12, -6.52859719e-13,
+    #     6.66256585e-01,  5.66092511e-04,  3.33177323e-01, -5.83827519e-12,
+    #    -5.56072778e-12, -5.77430469e-12,  6.66256585e-01,  5.66092511e-04,
+    #    -5.83826627e-12, -5.56071912e-12,  3.33177323e-01, -5.77429583e-12,
+    #     1.00000000e+00,  4.06615837e-12,  3.38195933e-12, -6.52862302e-13]
+    # flag1 = sum([y[i] * flag_constraints[0][0][i] for i in range(56)])
+    # print flag1
+    # print '********'
+    # print eigvals(flag1)
+    # print '********'
 
 
     # solve dat!
@@ -259,22 +259,20 @@ def main():
     # # TODO: add description to this
     # parser.add_argument('rho', type=float)
     # args = parser.parse_args()
-    
-    pair_raw_graph = nx.Graph()
-    pair_raw_graph.add_nodes_from([1, 2])
-    pair1 = SingleGraph(pair_raw_graph, {1: 0, 2: 0}, {1: True, 2: False})
-    pair2 = SingleGraph(pair_raw_graph, {1: 0, 2: 1}, {1: True, 2: False})
-    product = pair1.multiply(pair2)
-    draw_graph_form(product)
-    second = product[1][0]
-    draw_graph_form([second.average_single_flag()])
+
+    # pair_raw_graph = nx.Graph()
+    # pair_raw_graph.add_nodes_from([1, 2])
+    # pair1 = SingleGraph(pair_raw_graph, {1: 0, 2: 0}, {1: True, 2: False})
+    # pair2 = SingleGraph(pair_raw_graph, {1: 0, 2: 1}, {1: True, 2: False})
+    # product = pair1.multiply(pair2)
+    # draw_graph_form(product)
+    # second = product[1][0]
+    # draw_graph_form([second.average_single_flag()])
     
 
 
-    intervals = 20
+    intervals = 100
     rhos = [i / float(intervals) for i in range(intervals + 1)]
-
-    rhos = [0.33334]
 
     pobjs = []
     for rho in rhos:
