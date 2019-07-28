@@ -206,12 +206,23 @@ class SingleGraph:
         return True
 
     # TODO: test this!
-    def contains_labeled_edge(self, label1, label2):
+    def count_labeled_edges(self, label1, label2):
+        count = 0
         edge_attrs = nx.get_edge_attributes(self.graph, 'node_attrs')
         for edge in edge_attrs:
             if set([attr[0] for attr in edge_attrs[edge]]) == set([label1, label2]):
-                return True
-        return False
+                count += 1
+        return count
+
+    def count_labeled_pairs(self, label1, label2):
+        cluster_labels = nx.get_node_attributes(self.graph, 'cluster')
+        if label1 == label2:
+            cnt = len([node for node in cluster_labels if cluster_labels[node] == label1])
+            return cnt * (cnt - 1) // 2
+        else:
+            cnt1 = len([node for node in cluster_labels if cluster_labels[node] == label1])
+            cnt2 = len([node for node in cluster_labels if cluster_labels[node] == label2])
+            return cnt1 * cnt2
 
     def unflag_graph(self):
         cluster_labels = nx.get_node_attributes(self.graph, 'cluster')

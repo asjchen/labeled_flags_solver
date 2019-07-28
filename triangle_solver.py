@@ -9,6 +9,13 @@ from graph_utils import SingleGraph, draw_graph_form
 import itertools
 import matplotlib.pyplot as plt
 
+def combination(n, k):
+    prod = 1
+    for i in range(1, k + 1):
+        prod *= n + 1 - i
+        prod /= i
+    return prod
+
 # edge_bools[i] denotes whether there's an edge from i to i+1
 def make_triangle_graph(clusters, edge_bools, flags=[]):
     raw_graph = nx.Graph()
@@ -155,20 +162,83 @@ def rho_density_constraints(vector_indices, rho):
 
     for label1, label2 in target_edges:
         for clusters in cluster_configs:
-            valid_indices = set()
+            empty_graph = make_triangle_graph(clusters, [0, 0, 0])
+            num_target_pairs = empty_graph.count_labeled_pairs(label1, label2)
+            rho_dict = {}
             for edge_bools in itertools.product(range(2), repeat=3):
-            
                 triangle_graph = make_triangle_graph(clusters, edge_bools)
-                idx = vector_entry_lookup(vector_indices, triangle_graph)
-                if idx is None:
-                    raise AssertionError(('Could not find graph with clusters {} '
-                        'and edge_bools {} in vector'.format(clusters, edge_bools)))    
-                if vector_indices[idx].contains_labeled_edge(label1, label2):
-                    valid_indices.add(idx)
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for idx in valid_indices:
-                lhs_constraints[-1][idx] = matrix([[-1]])
-            rhs_constraints.append(matrix([[-1 * rho]]))
+                num_target_edges = triangle_graph.count_labeled_edges(label1, label2)
+                if num_target_edges not in rho_dict:
+                    rho_dict[num_target_edges] = []
+                graph_idx = vector_entry_lookup(vector_indices, triangle_graph)
+                rho_dict[num_target_edges].append(graph_idx)
+            for num_target_edges in rho_dict:
+                thresh = (rho ** num_target_edges) * ((1 - rho) ** (num_target_pairs - num_target_edges))
+                thresh *= combination(num_target_pairs, num_target_edges)
+                lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+                for idx in rho_dict[num_target_edges]:
+                    lhs_constraints[-1][idx] = matrix([[1]])
+                rhs_constraints.append(matrix([[thresh]]))
+
+                lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+                for idx in rho_dict[num_target_edges]:
+                    lhs_constraints[-1][idx] = matrix([[-1]])
+                rhs_constraints.append(matrix([[-thresh]]))
+
+        # rho_dict = {}
+        
+        # for clusters in cluster_configs:
+        #     for edge_bools in itertools.product(range(2), repeat=3):
+        #         triangle_graph = make_triangle_graph(clusters, edge_bools)
+        #         num_target_pairs = triangle_graph.count_labeled_pairs(label1, label2)
+        #         num_target_edges = triangle_graph.count_labeled_edges(label1, label2)
+        #         num_target_nonedges = num_target_pairs - num_target_edges
+        #         if (num_target_edges, num_target_nonedges) not in rho_dict:
+        #             rho_dict[(num_target_edges, num_target_nonedges)] = []
+        #         graph_idx = vector_entry_lookup(vector_indices, triangle_graph)
+        #         rho_dict[(num_target_edges, num_target_nonedges)].append(graph_idx)
+
+        # for num_target_edges, num_target_nonedges in rho_dict:
+        #     # Enforce equality to rho^p * (1-rho)^q
+        #     lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+        #     for idx in rho_dict[(num_target_edges, num_target_nonedges)]:
+        #         lhs_constraints[-1][idx] = matrix([[1]])
+        #     rhs_constraints.append(matrix([[(rho ** num_target_edges) * ((1 - rho) ** num_target_nonedges)]]))
+
+        #     lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+        #     for idx in rho_dict[(num_target_edges, num_target_nonedges)]:
+        #         lhs_constraints[-1][idx] = -matrix([[1]])
+        #     rhs_constraints.append(matrix([[-(rho ** num_target_edges) * ((1 - rho) ** num_target_nonedges)]]))
+        #     # make the constraints
+
+    # for each pair of clusters
+    #   for each cluster configuration
+    #       count the number of possible edges k
+    #       for edge_bools among the target edges:
+    #           compute the number of existing edges m
+    #           compute kCm * (1-p)^(k-m) * p^m as RHS (exact?)
+    #           for remaining_edge_bools among the rest of the edges:
+    #               add to the constraint
+
+
+    # for label1, label2 in target_edges:
+    #     for clusters in cluster_configs:
+    #         valid_indices = set()
+    #         for edge_bools in itertools.product(range(2), repeat=3):
+            
+    #             triangle_graph = make_triangle_graph(clusters, edge_bools)
+    #             idx = vector_entry_lookup(vector_indices, triangle_graph)
+    #             if idx is None:
+    #                 raise AssertionError(('Could not find graph with clusters {} '
+    #                     'and edge_bools {} in vector'.format(clusters, edge_bools)))    
+    #             if vector_indices[idx].contains_labeled_edge(label1, label2):
+    #                 valid_indices.add(idx)
+    #         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+    #         for idx in valid_indices:
+    #             lhs_constraints[-1][idx] = matrix([[-1]])
+    #         rhs_constraints.append(matrix([[-1 * rho]]))
+
+
     return lhs_constraints, rhs_constraints
 
 def solve_triangle_problem(rho, verbose=False):
@@ -274,9 +344,11 @@ def main():
     intervals = 100
     rhos = [i / float(intervals) for i in range(intervals + 1)]
 
+    #rhos = [0.38, 0.381966, 0.4]
+
     pobjs = []
     for rho in rhos:
-        pobjs.append(solve_triangle_problem(rho, verbose=True))
+        pobjs.append(solve_triangle_problem(rho, verbose=False))
         print rho
         print pobjs[-1]
     plt.plot(rhos, pobjs)
