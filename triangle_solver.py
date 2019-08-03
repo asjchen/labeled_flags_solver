@@ -2,7 +2,7 @@
 
 import argparse
 import networkx as nx
-from numpy import matrix, zeros
+from numpy import matrix, zeros, sqrt
 from numpy.linalg import norm, eigvals
 import Irene
 from graph_utils import SingleGraph, draw_graph_form
@@ -169,12 +169,17 @@ def rho_density_constraints(vector_indices, rho):
                 triangle_graph = make_triangle_graph(clusters, edge_bools)
                 num_target_edges = triangle_graph.count_labeled_edges(label1, label2)
                 if num_target_edges not in rho_dict:
-                    rho_dict[num_target_edges] = []
+                    rho_dict[num_target_edges] = set()
                 graph_idx = vector_entry_lookup(vector_indices, triangle_graph)
-                rho_dict[num_target_edges].append(graph_idx)
+                rho_dict[num_target_edges].add(graph_idx)
+            print label1, label2
+            print clusters
             for num_target_edges in rho_dict:
                 thresh = (rho ** num_target_edges) * ((1 - rho) ** (num_target_pairs - num_target_edges))
                 thresh *= combination(num_target_pairs, num_target_edges)
+                
+                print num_target_edges, thresh
+
                 lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
                 for idx in rho_dict[num_target_edges]:
                     lhs_constraints[-1][idx] = matrix([[1]])
@@ -265,10 +270,11 @@ def solve_triangle_problem(rho, verbose=False):
 
     rho_constraints = rho_density_constraints(vector_indices, rho)
     if verbose:
-        print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 30 (3 for each cluster configuration)
+       print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 30 (3 for each cluster configuration)
 
     lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0]
     rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1]
+
 
     # convert constraints to Irene form
     constraint_blocks = []
@@ -342,13 +348,14 @@ def main():
 
 
     intervals = 100
-    rhos = [i / float(intervals) for i in range(intervals + 1)]
+    #rhos = [i / float(intervals) for i in range(intervals + 1)]
 
-    #rhos = [0.38, 0.381966, 0.4]
+    rhos = [2 - (1 + sqrt(5.0)) / 2]
 
     pobjs = []
     for rho in rhos:
-        pobjs.append(solve_triangle_problem(rho, verbose=False))
+        #pobjs.append(solve_triangle_problem(rho, verbose=False))
+        pobjs.append(solve_triangle_problem(rho, verbose=True))
         print rho
         print pobjs[-1]
     plt.plot(rhos, pobjs)
