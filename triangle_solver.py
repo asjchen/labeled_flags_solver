@@ -63,8 +63,11 @@ def visualize_vector(vector_indices, num_vector, tolerance=1e-8):
 def visualize_indexing(vector_indices):
     visualize_vector(vector_indices, [1] * len(vector_indices))
 
-def visualize_constraint(vector_indices, lhs_constraint):
-    visualize_vector(vector_indices, [norm(m) for m in lhs_constraint])
+def visualize_constraint(vector_indices, lhs_constraint, coords=None):
+    if coords is None:
+        visualize_vector(vector_indices, [norm(m) for m in lhs_constraint])
+    else:
+        visualize_vector(vector_indices, [m[coords[0], coords[1]] for m in lhs_constraint])
 
 def nonnegative_entry_constraints(vector_indices):
     lhs_constraints = []
@@ -132,7 +135,7 @@ def make_pair_graph(flag_cluster, partner_cluster, edge_bool):
 def flag_alg_constraints(vector_indices):
     lhs_constraints = []
     rhs_constraints = []
-    partners = [(cluster, edge) for edge in range(2) for cluster in range(3)]
+    partners = [(cluster, edge) for cluster in range(3) for edge in range(2)]
     for flag_cluster in range(3):
         lhs_constraints.append([matrix(zeros((6, 6))) for _ in range(len(vector_indices))])
         rhs_constraints.append(matrix(zeros((6, 6))))
@@ -142,7 +145,7 @@ def flag_alg_constraints(vector_indices):
             for idx2 in range(len(partners)):
                 cluster2, edge2 = partners[idx2]
                 pair2 = make_pair_graph(flag_cluster, cluster2, edge2)
-                product = pair1.multiply(pair2)
+                product = pair1.multiply(pair2) 
                 # multiply the two coefficients 
                 for sing_graph, mult_coeff in product:
                     avg_graph, avg_coeff = sing_graph.average_single_flag()
@@ -150,6 +153,9 @@ def flag_alg_constraints(vector_indices):
                     lhs_constraints[flag_cluster][graph_idx][idx1, idx2] += mult_coeff * avg_coeff
                     # print lhs_constraints[flag_cluster][graph_idx]
     return lhs_constraints, rhs_constraints
+
+
+# Extra conditions that are specific to our K3 case?
 
 
 # given an edge, the sum of the graphs containing that edge
@@ -246,120 +252,165 @@ def rho_density_constraints_old(vector_indices, rho):
 
 
 # NOTE: currently very specifically for the triangle case...
+# def rho_density_constraints_old(vector_indices, rho):
+#     target_edges = [(0, 1), (1, 2), (0, 2)]
+#     lhs_constraints = []
+#     rhs_constraints = []
+
+#     # Ignore the 0-0-0 case (all three vertices from same cluster)
+
+#     # Examine 0-0-1 case
+#     for orig_label1, orig_label2 in target_edges:
+#         for label1, label2 in [(orig_label1, orig_label2), (orig_label2, orig_label1)]:
+#             clusters = (label1, label2, label2)
+#             # 2 edges
+#             two_graphs = [make_triangle_graph(clusters, [1, i, 1]) for i in range(2)]
+#             two_indices = [vector_entry_lookup(vector_indices, two_graph) for two_graph in two_graphs]
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for two_idx in two_indices:
+#                 lhs_constraints[-1][two_idx] = matrix([[1]])
+#             rhs_constraints.append(matrix([[rho * rho]]))
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for two_idx in two_indices:
+#                 lhs_constraints[-1][two_idx] = matrix([[-1]])
+#             rhs_constraints.append(matrix([[-rho]]))
+
+#             # 1 edge
+#             one_graphs = [make_triangle_graph(clusters, [1, i, 0]) for i in range(2)]
+#             one_indices = [vector_entry_lookup(vector_indices, one_graph) for one_graph in one_graphs]
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for one_idx in one_indices:
+#                 lhs_constraints[-1][one_idx] = matrix([[1]])
+#             rhs_constraints.append(matrix([[0]]))
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for one_idx in one_indices:
+#                 lhs_constraints[-1][one_idx] = matrix([[-1]])
+#             rhs_constraints.append(matrix([[-2 * rho * (1 - rho)]]))
+
+#             # 0 edges
+#             zero_graphs = [make_triangle_graph(clusters, [0, i, 0]) for i in range(2)]
+#             zero_indices = [vector_entry_lookup(vector_indices, zero_graph) for zero_graph in zero_graphs]
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for zero_idx in zero_indices:
+#                 lhs_constraints[-1][zero_idx] = matrix([[1]])
+#             rhs_constraints.append(matrix([[(1 - rho) ** 2]]))
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for zero_idx in zero_indices:
+#                 lhs_constraints[-1][zero_idx] = matrix([[-1]])
+#             rhs_constraints.append(matrix([[-(1 - rho)]]))
+
+#             # extra constraint?
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for zero_idx in zero_indices:
+#                 lhs_constraints[-1][zero_idx] = matrix([[1]])
+#             for one_idx in one_indices:
+#                 lhs_constraints[-1][one_idx] = matrix([[2]])
+#             for two_idx in two_indices:
+#                 lhs_constraints[-1][two_idx] = matrix([[1]])
+#             rhs_constraints.append(matrix([[1]]))
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for zero_idx in zero_indices:
+#                 lhs_constraints[-1][zero_idx] = matrix([[-1]])
+#             for one_idx in one_indices:
+#                 lhs_constraints[-1][one_idx] = matrix([[-2]])
+#             for two_idx in two_indices:
+#                 lhs_constraints[-1][two_idx] = matrix([[-1]])
+#             rhs_constraints.append(matrix([[-1]]))
+
+#             # another constraint?
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for zero_idx in zero_indices:
+#                 lhs_constraints[-1][zero_idx] = matrix([[1]])
+#             for one_idx in one_indices:
+#                 lhs_constraints[-1][one_idx] = matrix([[1]])
+#             rhs_constraints.append(matrix([[1 - rho]]))
+#             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#             for zero_idx in zero_indices:
+#                 lhs_constraints[-1][zero_idx] = matrix([[-1]])
+#             for one_idx in one_indices:
+#                 lhs_constraints[-1][one_idx] = matrix([[-1]])
+#             rhs_constraints.append(matrix([[-1 + rho]]))
+
+#     # Finally the 0-1-2 case
+#     # Use fact we have at most one edge existing in this configuration
+#     perms = [(0, 1, 2), (1, 2, 0), (2, 0, 1)]
+#     for clusters in perms:
+#         # if the first edge is the target edge
+
+#         # Empty edge
+#         zero_indices = []
+#         for edge_bools in itertools.product(range(2), repeat=2):
+#             zero_graph = make_triangle_graph(clusters, (0,) + edge_bools)
+#             zero_indices.append(vector_entry_lookup(vector_indices, zero_graph))
+#         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#         for zero_idx in zero_indices:
+#             lhs_constraints[-1][zero_idx] = matrix([[1]])
+#         rhs_constraints.append(matrix([[1 - rho]]))
+#         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#         for zero_idx in zero_indices:
+#             lhs_constraints[-1][zero_idx] = matrix([[-1]])
+#         rhs_constraints.append(matrix([[-(1 - rho)]]))
+
+#         # Nonempty edge
+#         one_indices = []
+#         for edge_bools in itertools.product(range(2), repeat=2):
+#             one_graph = make_triangle_graph(clusters, (1,) + edge_bools)
+#             one_indices.append(vector_entry_lookup(vector_indices, one_graph))
+#         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#         for one_idx in one_indices:
+#             lhs_constraints[-1][one_idx] = matrix([[1]])
+#         rhs_constraints.append(matrix([[rho]]))
+#         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+#         for one_idx in one_indices:
+#             lhs_constraints[-1][one_idx] = matrix([[-1]])
+#         rhs_constraints.append(matrix([[-rho]]))
+
+#     return lhs_constraints, rhs_constraints
+
+
 def rho_density_constraints(vector_indices, rho):
     target_edges = [(0, 1), (1, 2), (0, 2)]
     lhs_constraints = []
     rhs_constraints = []
 
-    # Ignore the 0-0-0 case (all three vertices from same cluster)
-
-    # Examine 0-0-1 case
-    for orig_label1, orig_label2 in target_edges:
-        for label1, label2 in [(orig_label1, orig_label2), (orig_label2, orig_label1)]:
-            clusters = (label1, label2, label2)
-            # 2 edges
-            two_graphs = [make_triangle_graph(clusters, [1, i, 1]) for i in range(2)]
-            two_indices = [vector_entry_lookup(vector_indices, two_graph) for two_graph in two_graphs]
+    # both 2-1 and 1-1-1 
+    for label1, label2 in target_edges:
+        # 2-1
+        clusters_list = [(label1, label2, label2), (label2, label1, label1)]
+        for clusters in clusters_list:
+            half_cap_graph = make_triangle_graph(clusters, [1, 0, 0])
+            full_cap_graph = make_triangle_graph(clusters, [1, 0, 1])
+            half_idx = vector_entry_lookup(vector_indices, half_cap_graph)
+            full_idx = vector_entry_lookup(vector_indices, full_cap_graph)
             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for two_idx in two_indices:
-                lhs_constraints[-1][two_idx] = matrix([[1]])
-            rhs_constraints.append(matrix([[rho * rho]]))
+            lhs_constraints[-1][half_idx] = matrix([[0.5]])
+            lhs_constraints[-1][full_idx] = matrix([[1.0]])
+            rhs_constraints.append(matrix([[rho]]))
             lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for two_idx in two_indices:
-                lhs_constraints[-1][two_idx] = matrix([[-1]])
+            lhs_constraints[-1][half_idx] = matrix([[-0.5]])
+            lhs_constraints[-1][full_idx] = matrix([[-1.0]])
             rhs_constraints.append(matrix([[-rho]]))
 
-            # 1 edge
-            one_graphs = [make_triangle_graph(clusters, [1, i, 0]) for i in range(2)]
-            one_indices = [vector_entry_lookup(vector_indices, one_graph) for one_graph in one_graphs]
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for one_idx in one_indices:
-                lhs_constraints[-1][one_idx] = matrix([[1]])
-            rhs_constraints.append(matrix([[0]]))
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for one_idx in one_indices:
-                lhs_constraints[-1][one_idx] = matrix([[-1]])
-            rhs_constraints.append(matrix([[-2 * rho * (1 - rho)]]))
+        # 1-1-1
+        clusters = (label1, label2, 3 - label1 - label2)
+        edge_bools_list = [[1, 0, 0], [1, 1, 0], [1, 0, 1], [1, 1, 1]]
+        three_indices = []
+        for edge_bools in edge_bools_list:
+            three_graph = make_triangle_graph(clusters, edge_bools)
+            three_idx = vector_entry_lookup(vector_indices, three_graph)
+            three_indices.append(three_idx)
 
-            # 0 edges
-            zero_graphs = [make_triangle_graph(clusters, [0, i, 0]) for i in range(2)]
-            zero_indices = [vector_entry_lookup(vector_indices, zero_graph) for zero_graph in zero_graphs]
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for zero_idx in zero_indices:
-                lhs_constraints[-1][zero_idx] = matrix([[1]])
-            rhs_constraints.append(matrix([[(1 - rho) ** 2]]))
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for zero_idx in zero_indices:
-                lhs_constraints[-1][zero_idx] = matrix([[-1]])
-            rhs_constraints.append(matrix([[-(1 - rho)]]))
-
-            # extra constraint?
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for zero_idx in zero_indices:
-                lhs_constraints[-1][zero_idx] = matrix([[1]])
-            for one_idx in one_indices:
-                lhs_constraints[-1][one_idx] = matrix([[2]])
-            for two_idx in two_indices:
-                lhs_constraints[-1][two_idx] = matrix([[1]])
-            rhs_constraints.append(matrix([[1]]))
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for zero_idx in zero_indices:
-                lhs_constraints[-1][zero_idx] = matrix([[-1]])
-            for one_idx in one_indices:
-                lhs_constraints[-1][one_idx] = matrix([[-2]])
-            for two_idx in two_indices:
-                lhs_constraints[-1][two_idx] = matrix([[-1]])
-            rhs_constraints.append(matrix([[-1]]))
-
-            # another constraint?
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for zero_idx in zero_indices:
-                lhs_constraints[-1][zero_idx] = matrix([[1]])
-            for one_idx in one_indices:
-                lhs_constraints[-1][one_idx] = matrix([[1]])
-            rhs_constraints.append(matrix([[1 - rho]]))
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            for zero_idx in zero_indices:
-                lhs_constraints[-1][zero_idx] = matrix([[-1]])
-            for one_idx in one_indices:
-                lhs_constraints[-1][one_idx] = matrix([[-1]])
-            rhs_constraints.append(matrix([[-1 + rho]]))
-
-    # Finally the 0-1-2 case
-    # Use fact we have at most one edge existing in this configuration
-    perms = [(0, 1, 2), (1, 2, 0), (2, 0, 1)]
-    for clusters in perms:
-        # if the first edge is the target edge
-
-        # Empty edge
-        zero_indices = []
-        for edge_bools in itertools.product(range(2), repeat=2):
-            zero_graph = make_triangle_graph(clusters, (0,) + edge_bools)
-            zero_indices.append(vector_entry_lookup(vector_indices, zero_graph))
         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-        for zero_idx in zero_indices:
-            lhs_constraints[-1][zero_idx] = matrix([[1]])
-        rhs_constraints.append(matrix([[1 - rho]]))
-        lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-        for zero_idx in zero_indices:
-            lhs_constraints[-1][zero_idx] = matrix([[-1]])
-        rhs_constraints.append(matrix([[-(1 - rho)]]))
-
-        # Nonempty edge
-        one_indices = []
-        for edge_bools in itertools.product(range(2), repeat=2):
-            one_graph = make_triangle_graph(clusters, (1,) + edge_bools)
-            one_indices.append(vector_entry_lookup(vector_indices, one_graph))
-        lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-        for one_idx in one_indices:
-            lhs_constraints[-1][one_idx] = matrix([[1]])
+        for three_idx in three_indices:
+            lhs_constraints[-1][three_idx] = matrix([[1.0]])
         rhs_constraints.append(matrix([[rho]]))
         lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-        for one_idx in one_indices:
-            lhs_constraints[-1][one_idx] = matrix([[-1]])
+        for three_idx in three_indices:
+            lhs_constraints[-1][three_idx] = matrix([[-1.0]])
         rhs_constraints.append(matrix([[-rho]]))
-
     return lhs_constraints, rhs_constraints
+
+
 
 
 def solve_triangle_problem(rho, verbose=False):
@@ -386,7 +437,7 @@ def solve_triangle_problem(rho, verbose=False):
 
     rho_constraints = rho_density_constraints(vector_indices, rho)
     if verbose:
-       print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 30 (3 for each cluster configuration)
+       print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 18
 
     lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0]
     rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1]
