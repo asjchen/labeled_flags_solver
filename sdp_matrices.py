@@ -22,5 +22,12 @@ a 1, a-1, a 2, a-2, a 3, a-3
 # imposing that eigenvalues must all be less than 3?
 # trace of a 6x6 matrix? it's going to be bounded above
 
+ 1  0 1-p p 1-p p
+ 0  0  0  0  0  0
+1-p 0  x  z  ?  ?
+ p  0  z  y  ?  ?
+1-p 0  ?  ?  x  z
+ p  0  ?  ?  z  y
 
+ that lower right submatrix must have rank 1 or 2
 
