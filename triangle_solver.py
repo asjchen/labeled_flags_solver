@@ -74,9 +74,9 @@ def nonnegative_entry_constraints(vector_indices):
     rhs_constraints = []
     for i in range(len(vector_indices)):
         # put one-hot vectors on LHS and 0 on RHS
-        lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-        lhs_constraints[i][i] = matrix([[1]])
-        rhs_constraints.append(matrix([[0]]))
+        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
+        lhs_constraints[i][i] = matrix([[1.0]])
+        rhs_constraints.append(matrix([[0.0]]))
     return lhs_constraints, rhs_constraints
 
 def label_sums_to_one(vector_indices):
@@ -98,15 +98,15 @@ def label_sums_to_one(vector_indices):
                     'and edge_bools {} in vector'.format(clusters, edge_bools)))
             valid_indices.add(idx)
         # Inequality in the first direction
-        lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
         for idx in valid_indices:
-            lhs_constraints[-1][idx] = matrix([[1]])
-        rhs_constraints.append(matrix([[1]]))
+            lhs_constraints[-1][idx] = matrix([[1.0]])
+        rhs_constraints.append(matrix([[1.0]]))
         # Inequality in the other direction (to ensure equality constraint)
-        lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
+        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
         for idx in valid_indices:
-            lhs_constraints[-1][idx] = matrix([[-1]])
-        rhs_constraints.append(matrix([[-1]]))
+            lhs_constraints[-1][idx] = matrix([[-1.0]])
+        rhs_constraints.append(matrix([[-1.0]]))
     return lhs_constraints, rhs_constraints
 
 # every graph with an edge within an edge should have zero count
@@ -115,9 +115,9 @@ def cluster_independence_constraints(vector_indices):
     rhs_constraints = []
     for i in range(len(vector_indices)):
         if not vector_indices[i].check_cluster_independence():
-            lhs_constraints.append([matrix([[0]]) for j in range(len(vector_indices))])
-            lhs_constraints[-1][i] = matrix([[-1]])
-            rhs_constraints.append(matrix([[0]]))
+            lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
+            lhs_constraints[-1][i] = matrix([[-1.0]])
+            rhs_constraints.append(matrix([[0.0]]))
     return lhs_constraints, rhs_constraints
 
 def make_pair_graph(flag_cluster, partner_cluster, edge_bool):
@@ -154,73 +154,54 @@ def flag_alg_constraints(vector_indices):
                     # print lhs_constraints[flag_cluster][graph_idx]
     return lhs_constraints, rhs_constraints
 
-# # Along with the 56(?) existing vars, for each of the three matrices,
-# # we need:
-# # +6 for x_1,..., x_n
-# # +6 for v_1, ..., v_n for the p-norm
-# # +37 for EACH of the 6 partial sums possible (s, then Z vars)
-# # so we have a total of 56 + 3(6+37*6+6) = 758 variables! Are you ready?
+def add_equality_constraint(vector_indices, product1, product2, lhs_constraints, rhs_constraints):
+    for i in range(2):
+        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
+        rhs_constraints.append(matrix([[0.0]]))
+    for sing_graph, mult_coeff in product1:
+        avg_graph, avg_coeff = sing_graph.average_single_flag()
+        graph_idx = vector_entry_lookup(vector_indices, avg_graph)
+        lhs_constraints[-2][graph_idx][0,0] += mult_coeff * avg_coeff
+        lhs_constraints[-1][graph_idx][0,0] += -1 * mult_coeff * avg_coeff
+    for sing_graph, mult_coeff in product2:
+        avg_graph, avg_coeff = sing_graph.average_single_flag()
+        graph_idx = vector_entry_lookup(vector_indices, avg_graph)
+        lhs_constraints[-2][graph_idx][0,0] += -1 * mult_coeff * avg_coeff
+        lhs_constraints[-1][graph_idx][0,0] += mult_coeff * avg_coeff
+    return lhs_constraints, rhs_constraints
 
-# # partial_sum_idx is in range(6)
-# def nondensity_var_to_idx(vector_indices, matrix_idx, var_name, 
-#     x_index=None, v_index=None, partial_sum_idx=None, z_coords=None, s_index=None):
-#     target_idx = len(vector_indices)
-#     target_idx += matrix_idx * 39 * 6
-#     if var_name == 'x':
-#         target_idx += x_index
-#         return target_idx
-#     target_idx += 6
-#     if var_name == 'v':
-#         target_idx += v_index
-#         return target_idx
-#     target_idx += 6
-#     target_idx += 37 * partial_sum_idx
-#     if var_name == 's':
-#         return target_idx
-#     else:
-#         target_idx += 1
-#         target_idx += 6 * z_coords[0] + z_coords[1]
-#         return target_idx
+# Assumes that configuration is symmetric for one vertex
+def rank2_symmetric_constraints(vector_indices, rho, xy_constraint='sum'):
+    lhs_constraints = []
+    rhs_constraints = []
+    pair1_empty = make_pair_graph(0, 1, 0)
+    pair1_full = make_pair_graph(0, 1, 1)
+    pair2_empty = make_pair_graph(0, 2, 0)
+    pair2_full = make_pair_graph(0, 2, 1)
 
+    # Symmetric condition
+    product1 = pair1_empty.multiply(pair1_full)
+    product2 = pair2_empty.multiply(pair2_full)
+    lhs_constraints, rhs_constraints = add_equality_constraint(vector_indices, product1, product2,
+        lhs_constraints, rhs_constraints)
 
-# # Idea is to approximate constraining 
-# # TODO: add extra variables to all the constraints
-# #   - add x_1, ..., x_6 for each matrix!
-# def schatten_constraints(vector_indices, flag_matrices, p):
-#     num_vars = len(vector_indices) + len(flag_matrices) * (39 * 6)
-#     p_norm_limit = 2 ** (1.0 / p) * 1.5
-#     lhs_constraints = []
-#     rhs_constraints = []
-#     for matrix_idx, flag_matrix in enumerate(flag_matrices):
-#         # x_1 >= x_2 >= ... >= x_6
-#         for i in range(5):
-#             lhs_constraints.append([matrix([[0]]) for j in range(num_vars)])
-#             idx1 = nondensity_var_to_idx(vector_indices, matrix_idx, 'x', x_index=i)
-#             idx2 = nondensity_var_to_idx(vector_indices, matrix_idx, 'x', x_index=(i + 1))
-#             lhs_constraints[-1][idx1] = matrix([[1]])
-#             lhs_constraints[-1][idx2] = matrix([[-1]])
-#             rhs_constraints.append(matrix([[0]]))
+    # Constraint following rank 2 condition
+    product1 = pair1_full.multiply(pair1_empty)
+    product2 = pair1_full.multiply(pair2_empty)
+    if xy_constraint == 'equal':
+        lhs_constraints, rhs_constraints = add_equality_constraint(vector_indices, product1, product2,
+            lhs_constraints, rhs_constraints)
 
-#         # trace of matrix == x_1 + ... + x_6
-#         # 2 constraints, one for each side
-#         lhs_constraints.append([matrix([[0]]) for j in range(num_vars)])
-#         for j in range(len(vector_indices)):
-#             lhs_constraints[-1][j] = matrix([[np.trace(flag_matrix[j])]])
-#         for i in range(6):
-#             idx = nondensity_var_to_idx(vector_indices, matrix_idx, 'x', x_index=i)
-#             lhs_constraints[-1][idx] = matrix([[-1]])
-#         rhs_constraints.append(matrix([0]))
-#         lhs_constraints.append(lhs_constraints[-1])
-#         for j in range(num_vars):
-#             lhs_constraints[-1][j] *= -1
-#         rhs_constraints.append(matrix([0]))
+    elif xy_constraint == 'sum':
+        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
+        rhs_constraints.append(matrix([[2 * rho * (1 - rho)]]))
 
-#         # p-norm condition
-#         # WAIT this probably doesn't work if p < 1...
+        for sing_graph, mult_coeff in product1 + product2:
+            avg_graph, avg_coeff = sing_graph.average_single_flag()
+            graph_idx = vector_entry_lookup(vector_indices, avg_graph)
+            lhs_constraints[-1][graph_idx][0,0] += mult_coeff * avg_coeff
 
-
-#         # partial sums of eigs are at most partial sums of x_i
-
+    return lhs_constraints, rhs_constraints
 
 
 # given an edge, the sum of the graphs containing that edge
@@ -334,8 +315,13 @@ def solve_triangle_problem(rho, verbose=False):
     if verbose:
        print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 18
 
-    lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0]
-    rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1]
+    xy_constraint = 'sum'
+    extra_constraints = rank2_symmetric_constraints(vector_indices, rho, xy_constraint=xy_constraint)
+    if verbose:
+        print 'Rank 2 Constraints (assuming symmetry in one vertex, with {}): {}'.format(xy_constraint, len(extra_constraints[0]))
+
+    lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0] + extra_constraints[0]
+    rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1] + extra_constraints[1]
 
 
     # convert constraints to Irene form
@@ -392,6 +378,7 @@ def main():
 
     #rhos = [2 - (1 + sqrt(5.0)) / 2]
     orig_rhos = [0.33333333]
+
 
     rhos = []
     pobjs = []
