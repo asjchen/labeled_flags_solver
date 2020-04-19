@@ -304,6 +304,7 @@ def solve_triangle_problem(rho, verbose=False):
 def main():
     intervals = 100
     orig_rhos = [i / float(intervals) for i in range(intervals + 1)]
+    # orig_rhos = [0.334]
 
     # Plot the minimum density of independent 3-sets for 
     # different values of rho in [0, 1]
@@ -311,6 +312,7 @@ def main():
     pobjs = []
     for rho in orig_rhos:
         pobj = solve_triangle_problem(rho, verbose=False)
+        # pobj = solve_triangle_problem(rho, verbose=True)
         if pobj is not None:
             rhos.append(rho)
             pobjs.append(pobj)

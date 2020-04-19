@@ -54,7 +54,8 @@ def draw_graph_form(graph_form):
             ax = axs[idx]
         else:
             ax = axs[idx // num_cols, idx % num_cols]
-        single_graph.draw(extra_text=str(coeff), ax=ax, draw=False)
+        single_graph.draw(extra_text=('%.5g' % coeff), ax=ax, draw=False)
+    plt.subplots_adjust(hspace=0.7)
     plt.show()
     plt.close()
 
