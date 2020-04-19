@@ -154,56 +154,6 @@ def flag_alg_constraints(vector_indices):
                     # print lhs_constraints[flag_cluster][graph_idx]
     return lhs_constraints, rhs_constraints
 
-def add_equality_constraint(vector_indices, product1, product2, lhs_constraints, rhs_constraints):
-    for i in range(2):
-        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
-        rhs_constraints.append(matrix([[0.0]]))
-    for sing_graph, mult_coeff in product1:
-        avg_graph, avg_coeff = sing_graph.average_single_flag()
-        graph_idx = vector_entry_lookup(vector_indices, avg_graph)
-        lhs_constraints[-2][graph_idx][0,0] += mult_coeff * avg_coeff
-        lhs_constraints[-1][graph_idx][0,0] += -1 * mult_coeff * avg_coeff
-    for sing_graph, mult_coeff in product2:
-        avg_graph, avg_coeff = sing_graph.average_single_flag()
-        graph_idx = vector_entry_lookup(vector_indices, avg_graph)
-        lhs_constraints[-2][graph_idx][0,0] += -1 * mult_coeff * avg_coeff
-        lhs_constraints[-1][graph_idx][0,0] += mult_coeff * avg_coeff
-    return lhs_constraints, rhs_constraints
-
-# Assumes that configuration is symmetric for one vertex
-def rank2_symmetric_constraints(vector_indices, rho, xy_constraint='sum'):
-    lhs_constraints = []
-    rhs_constraints = []
-    pair1_empty = make_pair_graph(0, 1, 0)
-    pair1_full = make_pair_graph(0, 1, 1)
-    pair2_empty = make_pair_graph(0, 2, 0)
-    pair2_full = make_pair_graph(0, 2, 1)
-
-    # Symmetric condition
-    product1 = pair1_empty.multiply(pair1_full)
-    product2 = pair2_empty.multiply(pair2_full)
-    lhs_constraints, rhs_constraints = add_equality_constraint(vector_indices, product1, product2,
-        lhs_constraints, rhs_constraints)
-
-    # Constraint following rank 2 condition
-    product1 = pair1_full.multiply(pair1_empty)
-    product2 = pair1_full.multiply(pair2_empty)
-    if xy_constraint == 'equal':
-        lhs_constraints, rhs_constraints = add_equality_constraint(vector_indices, product1, product2,
-            lhs_constraints, rhs_constraints)
-
-    elif xy_constraint == 'sum':
-        lhs_constraints.append([matrix([[0.0]]) for j in range(len(vector_indices))])
-        rhs_constraints.append(matrix([[2 * rho * (1 - rho)]]))
-
-        for sing_graph, mult_coeff in product1 + product2:
-            avg_graph, avg_coeff = sing_graph.average_single_flag()
-            graph_idx = vector_entry_lookup(vector_indices, avg_graph)
-            lhs_constraints[-1][graph_idx][0,0] += mult_coeff * avg_coeff
-
-    return lhs_constraints, rhs_constraints
-
-
 # given an edge, the sum of the graphs containing that edge
 def rho_density_constraints_old(vector_indices, rho):
     target_edges = [(0, 1), (1, 2), (0, 2)]
@@ -287,8 +237,6 @@ def rho_density_constraints(vector_indices, rho):
     return lhs_constraints, rhs_constraints
 
 
-
-
 def solve_triangle_problem(rho, verbose=False):
     # Compute the indexing
     vector_indices = generate_indexing()
@@ -315,13 +263,8 @@ def solve_triangle_problem(rho, verbose=False):
     if verbose:
        print 'Rho Density Constraints: {}'.format(len(rho_constraints[0])) # should be 18
 
-    xy_constraint = 'sum'
-    extra_constraints = rank2_symmetric_constraints(vector_indices, rho, xy_constraint=xy_constraint)
-    if verbose:
-        print 'Rank 2 Constraints (assuming symmetry in one vertex, with {}): {}'.format(xy_constraint, len(extra_constraints[0]))
-
-    lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0] + extra_constraints[0]
-    rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1] + extra_constraints[1]
+    lhs_constraints = nonneg_constraints[0] + label_sum_constraints[0] + cluster_ind_constraints[0] + rho_constraints[0] + flag_constraints[0] 
+    rhs_constraints = nonneg_constraints[1] + label_sum_constraints[1] + cluster_ind_constraints[1] + rho_constraints[1] + flag_constraints[1] 
 
 
     # convert constraints to Irene form
@@ -348,7 +291,7 @@ def solve_triangle_problem(rho, verbose=False):
     obj[obj_idx] = 1
     SDP.SetObjective(obj)
 
-    # solve dat!
+    # solve the problem!
     SDP.solve()
     if verbose:
         print SDP.Info
@@ -359,32 +302,15 @@ def solve_triangle_problem(rho, verbose=False):
 
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # # TODO: add description to this
-    # parser.add_argument('rho', type=float)
-    # args = parser.parse_args()
-
-    # pair_raw_graph = nx.Graph()
-    # pair_raw_graph.add_nodes_from([1, 2])
-    # pair1 = SingleGraph(pair_raw_graph, {1: 0, 2: 0}, {1: True, 2: False})
-    # pair2 = SingleGraph(pair_raw_graph, {1: 0, 2: 1}, {1: True, 2: False})
-    # product = pair1.multiply(pair2)
-    # draw_graph_form(product)
-    # second = product[1][0]
-    # draw_graph_form([second.average_single_flag()])
-
     intervals = 100
     orig_rhos = [i / float(intervals) for i in range(intervals + 1)]
 
-    #rhos = [2 - (1 + sqrt(5.0)) / 2]
-    orig_rhos = [0.33333333]
-
-
+    # Plot the minimum density of independent 3-sets for 
+    # different values of rho in [0, 1]
     rhos = []
     pobjs = []
     for rho in orig_rhos:
-        #pobj = solve_triangle_problem(rho, verbose=False)
-        pobj = solve_triangle_problem(rho, verbose=True)
+        pobj = solve_triangle_problem(rho, verbose=False)
         if pobj is not None:
             rhos.append(rho)
             pobjs.append(pobj)
@@ -393,10 +319,6 @@ def main():
     plt.plot(rhos, pobjs)
     plt.show()
     plt.close()
-
-
-
-    
 
 
 if __name__ == '__main__':
