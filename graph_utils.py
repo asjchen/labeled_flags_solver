@@ -86,15 +86,19 @@ class SingleGraph:
             add_labeled_edge(self.graph, n1, n2)
 
     def draw(self, flag_size=400, node_size=200, extra_text=None, ax=None, draw=True):
+        cluster_labels = nx.get_node_attributes(self.graph, 'cluster')
+        cluster_labels = { k: (cluster_labels[k] + 1) for k in cluster_labels }
+        color_map = { 1: 'r', 2: 'gold', 3: 'cornflowerblue' }
+        cluster_colors = [color_map[cluster_labels[k]] for k in sorted(cluster_labels.keys())]
+
         pos = nx.circular_layout(self.graph)
-        nx.draw_networkx_nodes(self.graph, pos, node_size=node_size, ax=ax)
+        nx.draw_networkx_nodes(self.graph, pos, node_size=node_size, 
+            node_color=cluster_colors, ax=ax)
 
         flag_status = nx.get_node_attributes(self.graph, 'flag')
         flags = [n for n in flag_status if flag_status[n]]
         nx.draw_networkx_nodes(self.graph, pos, nodelist=flags, 
-            node_shape='d', node_size=flag_size, ax=ax)
-
-        cluster_labels = nx.get_node_attributes(self.graph, 'cluster')
+            node_shape='d', node_color=cluster_colors, node_size=flag_size, ax=ax)
         nx.draw_networkx_labels(self.graph, pos, labels=cluster_labels, ax=ax)
 
         nx.draw_networkx_edges(self.graph, pos, ax=ax)
